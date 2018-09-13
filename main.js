@@ -204,7 +204,7 @@ const sendTile = (tile, response=null) => {
             }
         }
         else if (tile.flag == 'maybe') {
-            c = tile.value == ('b' ? 'b' : '?') + ',' + tile.color;
+            c = tile.value == 'b' ? 'b' : ('?' + ',' + tile.color);
         }
         else {
             c = tile.value;
