@@ -1,7 +1,7 @@
 body {
     font-family: Sans-Serif;
     color: #ccc;
-    background-color: #333;
+    background-color: #111;
 }
 
 a:link {
@@ -27,11 +27,11 @@ a:active {
 }
 
 .tile {
-    color: #999;
+    color: #LightGray;
     background-color: #222;
 
     outline-style: solid;
-    outline-color: #555;
+    outline-color: #111;
     outline-width: 1px;
 
     width: 100%;
@@ -70,35 +70,35 @@ a:active {
 }
 
 .one {
-    color: #47f;
+    color: DodgerBlue;
 }
 
 .two {
-    color: #2c5;
+    color: LimeGreen;
 }
 
 .three {
-    color: #e44;
+    color: Tomato;
 }
 
 .four {
-    color: #c5a;
+    color: Violet;
 }
 
 .five {
-    color: #da3;
+    color: Orange;
 }
 
 .six {
-    color: #3aa;
+    color: MediumTurquoise;
 }
 
 .seven {
-    color: #222;
+    color: Black;
 }
 
-.seven {
-    color: #999;
+.eight {
+    color: LightGray;
 }
 
 /*
