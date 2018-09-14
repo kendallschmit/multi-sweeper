@@ -16,33 +16,36 @@ const makeElementIn = (type, classes, parentElement) => {
     return e;
 }
 
-const lookup = {
-    ' ': { 'text': ' ', style: 'hidden' },
-    'f': { 'text': '⚑', style: 'flag' },
-    '?': { 'text': '?', style: 'flag' },
-    'x': { 'text': '╳', style: 'mistake' },
-    'b': { 'text': '⁜', style: 'bomb' },
+const removeChildElements = (parentElement) => {
+    while (parentElement.hasChildNodes()) {
+        parentElement.removeChild(parentElement.lastChild);
+    }
+}
 
-    '0': { 'text': ' ', style: 'zero' },
-    '1': { 'text': '1', style: 'one' },
-    '2': { 'text': '2', style: 'two' },
-    '3': { 'text': '3', style: 'three' },
-    '4': { 'text': '4', style: 'four' },
-    '5': { 'text': '5', style: 'five' },
-    '6': { 'text': '6', style: 'six' },
-    '7': { 'text': '7', style: 'seven' },
-    '8': { 'text': '8', style: 'eight' }
+const lookup = {
+    'h': { 'text': ' ', style: ['hidden'] },
+    'f': { 'text': '⚑', style: ['hidden', 'flag'] },
+    'm': { 'text': '?', style: ['hidden', 'flag'] },
+    'i': { 'text': '╳', style: ['hidden', 'mistake'] },
+    'b': { 'text': '⁜', style: ['hidden', 'bomb'] },
+    'e': { 'text': '⁜', style: ['revealed', 'explode'] },
+
+    '0': { 'text': ' ', style: ['revealed', 'zero'] },
+    '1': { 'text': '1', style: ['revealed', 'one'] },
+    '2': { 'text': '2', style: ['revealed', 'two'] },
+    '3': { 'text': '3', style: ['revealed', 'three'] },
+    '4': { 'text': '4', style: ['revealed', 'four'] },
+    '5': { 'text': '5', style: ['revealed', 'five'] },
+    '6': { 'text': '6', style: ['revealed', 'six'] },
+    '7': { 'text': '7', style: ['revealed', 'seven'] },
+    '8': { 'text': '8', style: ['revealed', 'eight'] }
 }
 
 const updateTile = (tileElement, r, c, value, color) => {
-    while (tileElement.hasChildNodes()) {
-        tileElement.removeChild(tileElement.lastChild);
-    }
-    const content = makeElementIn('div',
-            ['tile-content', lookup[value].style],
-            tileElement);
+    removeChildElements(tileElement);
+    const content = makeElementIn('div', lookup[value].style, tileElement);
     if (color) {
-        content.style.color = '#' + color;
+        content.style.color = color;
     }
     appendText(content, lookup[value].text);
 }

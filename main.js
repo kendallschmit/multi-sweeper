@@ -4,10 +4,10 @@ const url = require('url');
 
 // general server stuff
 const serveFile = (req, res) => {
-    const url = "./" + req.url;
-    let ext = url.split('.').pop();
+    const p = url.parse(req.url, true);
+    let ext = p.pathname.split('.').pop();
     if (ext == 'png') {
-        fs.readFile(url, (err, contents) => {
+        fs.readFile('./' + p.pathname, (err, contents) => {
             if (!err) {
                 res.writeHead(200, { 'Content-Type': 'image/png' });
                 res.end(contents, 'binary');
@@ -17,10 +17,18 @@ const serveFile = (req, res) => {
             }
         });
     }
-    else {
-        fs.readFile(url, "utf8", (err, contents) => {
+    else if (ext == 'css' || ext == 'js' || ext == 'html') {
+        console.log(p.pathname);
+        fs.readFile('./' + p.pathname, 'utf8', (err, contents) => {
             if (!err) {
-                res.writeHead(200, {});
+                const types = {
+                    'css': 'text/css',
+                    'js': 'application/javascript',
+                    'html': 'text/html'
+                };
+                res.writeHead(200, {
+                    'Content-Type': `${types[ext]}; charset=utf-8`
+                });
                 res.write(contents);
                 res.end();
             }
@@ -29,19 +37,24 @@ const serveFile = (req, res) => {
             }
         });
     }
+    else {
+        res.end();
+    }
 };
 
 // SHORT MESSAGES
 // new width,height,mines
 //
-// reveal: row,column,number
-// explode: row,column
-// flag: row,column,color
-// mark: row,column,color
-// clear: row,column
-// incorrect: row,column
+// tile: row,column,<tile>,<color>
+//   h: hidden
+//   0-8: revealed number
+//   f: flag
+//   m: mark
+//   i: incorrect
+//   b: undetonated bomb
+//   e: detonated bomb
 //
-// alive: alive
+// state: alive/dead/win
 // flag-count: flagCount
 //
 // REQUESTS
@@ -57,32 +70,33 @@ http.createServer((req, res) => {
     const p = url.parse(req.url, true);
     // new game
     if (p.pathname == '/new') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.write('configuration applied');
         res.end();
         handleNewRequest(p);
     }
     else if (p.pathname == '/reveal') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
         handleRevealRequest(p); }
-    else if (p.pathname == 'flag') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+    else if (p.pathname == '/flag') {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
         handleFlagRequest(p);
     }
-    else if (p.pathname == 'mark') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+    else if (p.pathname == '/mark') {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
         handleMarkRequest(p);
     }
-    else if (p.pathname == 'clear') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+    else if (p.pathname == '/clear') {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
         handleClearRequest(p);
     }
     else if (p.pathname == '/sse') {
         res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
+            'Content-Type': 'text/event-stream; charset=utf-8',
             'Cache-Control': 'no-cache'
         });
         res.on('close', (e) => {
@@ -100,17 +114,12 @@ http.createServer((req, res) => {
 }).listen(8080);
 
 const notifyClient = (message, client=null) => {
-    console.log('notify');
     if (client) {
-        console.log('event:', message.event);
-        console.log('data:', message.data);
         client.write('event: ' + message.event + '\n');
         client.write('data: ' + message.data + '\n\n');
     }
     else {
         clientResponses.forEach((res) => {
-            console.log('event:', message.event);
-            console.log('data:', message.data);
             res.write('event: ' + message.event + '\n');
             res.write('data: ' + message.data + '\n\n');
         });
@@ -124,52 +133,55 @@ const makeNewEvent = (width, height, mines) => {
     };
 };
 
-const makeRevealEvent = (row, column, number) => {
+const makeTileEvent = (tile) => {
+    let info = 'h';
+    if (state == 'alive') {
+        if (tile.revealed) {
+            info = getValue(tile);
+        }
+        else if (tile.flag) {
+            info = `f,${tile.flag}`;
+        }
+        else if (tile.mark) {
+            info = `m,${tile.mark}`;
+        }
+    }
+    else {
+        if (tile.bomb) {
+            if (tile.revealed) {
+                info = 'e';
+            }
+            else {
+                if (tile.flag) {
+                    info = `f,${tile.flag}`;
+                }
+                else {
+                    info = 'b';
+                }
+            }
+        }
+        else {
+            if (tile.revealed) {
+                info = getValue(tile);
+            }
+            else if (tile.flag) {
+                info = 'i';
+            }
+            else if (tile.mark) {
+                info = `m,${tile.mark}`;
+            }
+        }
+    }
     return {
-        'event': 'reveal',
-        'data': `${row},${column},${number}`
+        'event': 'tile',
+        'data': `${tile.row},${tile.column},${info}`
     };
 };
 
-const makeExplodeEvent = (row, column) => {
+const makeStateEvent = (state) => {
     return {
-        'event': 'explode',
-        'data': `${row},${column}`
-    };
-};
-
-const makeFlagEvent = (row, column, color) => {
-    return {
-        'event': 'flag',
-        'data': `${row},${column},${color}`
-    };
-};
-
-const makeMarkEvent = (row, column, color) => {
-    return {
-        'event': 'mark',
-        'data': `${row},${column},${color}`
-    };
-};
-
-const makeClearEvent = (row, column) => {
-    return {
-        'event': 'clear',
-        'data': `${row},${column}`
-    };
-};
-
-const makeIncorrectEvent = (row, column) => {
-    return {
-        'event': 'incorrect',
-        'data': `${row},${column},${color}`
-    };
-};
-
-const makeAliveEvent = (alive) => {
-    return {
-        'event': 'alive',
-        'data': alive ? 'true' : 'false'
+        'event': 'state',
+        'data': state
     };
 };
 
@@ -178,16 +190,26 @@ const makeFlagCountEvent = (flagCount) => {
         'event': 'flag-count',
         'data': `${flagCount}`
     };
+}
+
+const makeWinEvent = () => {
+    return {
+        'event': 'win',
+        'data': ``
+    };
 };
+;
 
 // globals
 var width = 10;
 var height = 10;
 var mines = 20;
 
-var alive = true;
+var state = 'alive';
 var flagCount = 0;
 var board = null;
+
+var firstReveal = true;
 
 // game logic
 const makeTile = (row, column) => {
@@ -211,7 +233,9 @@ const getNeighbors = (tile) => {
         for (let c = Math.max(column - 1, 0);
                 c <= Math.min(column + 1, width - 1);
                 c++) {
-            neighbors.push(board[r][c]);
+            if (!(r == row && c == column)) {
+                neighbors.push(board[r][c]);
+            }
         }
     }
     return neighbors;
@@ -246,15 +270,15 @@ const generateBoard = (w, h, m) => {
     for (let n = 0; n < mines; n++) {
         i = Math.floor(Math.random() * positions.length);
         p = positions.splice(i, 1)[0];
-        board[p.row][p.column].value = 'b';
+        board[p.row][p.column].bomb = true;
     }
 };
 
 const checkVictoryState = () => {
     let problemFound = false;
     let flags = 0;
-    for (let r = 0; r < h && !problemFound; r++) {
-        for (let c = 0; c < w && !problemFound; c++) {
+    for (let r = 0; r < height && !problemFound; r++) {
+        for (let c = 0; c < width && !problemFound; c++) {
             t = board[r][c];
             if ((t.bomb && !t.flag)
                 || (!t.bomb && t.flag)
@@ -263,7 +287,10 @@ const checkVictoryState = () => {
             }
         }
     }
-    return !problemFound;
+    if (!problemFound) {
+        state = 'win';
+        notifyClient(makeStateEvent(state));
+    }
 }
 
 const newGame = (w, h, m) => {
@@ -271,25 +298,31 @@ const newGame = (w, h, m) => {
     height = h;
     mines = m;
     generateBoard(w, h, m);
-    alive = true;
+    state = 'alive';
     flags = 0;
-
+    firstReveal = true;
     notifyClient(makeNewEvent(w, h, m));
-    notifyClient(makeAliveEvent(alive));
+    notifyClient(makeStateEvent(state));
     notifyClient(makeFlagCountEvent(flags));
 };
 
 // player actions, before validation
 const handleNewRequest = (parsedUrl) => {
-    const w = parseInt(parsedUrl.query['width']);
-    const h = parseInt(parsedUrl.query['height']);
-    const m = parseInt(parsedUrl.query['mines']);
-
+    let w = width;
+    let h = height;
+    let m = mines;
+    if (parsedUrl.query['width']
+            && parsedUrl.query['height']
+            && parsedUrl.query['mines']) {
+        w = parseInt(parsedUrl.query['width']);
+        h = parseInt(parsedUrl.query['height']);
+        m = parseInt(parsedUrl.query['mines']);
+    }
     newGame(w, h, m);
 }
 
 const handleRevealRequest = (parsedUrl) => {
-    if (!alive) {
+    if (state != 'alive') {
         return;
     }
     const r = parseInt(parsedUrl.query['row']);
@@ -298,10 +331,11 @@ const handleRevealRequest = (parsedUrl) => {
     if (!tile.revealed && !tile.flag && !tile.mark) {
         revealTile(tile);
     }
+    checkVictoryState();
 }
 
 const handleFlagRequest = (parsedUrl) => {
-    if (!alive) {
+    if (state != 'alive') {
         return;
     }
     const r = parseInt(parsedUrl.query['row']);
@@ -311,10 +345,11 @@ const handleFlagRequest = (parsedUrl) => {
     if (!tile.revealed && !tile.flag) {
         flagTile(tile, color);
     }
+    checkVictoryState();
 }
 
 const handleMarkRequest = (parsedUrl) => {
-    if (!alive) {
+    if (state != 'alive') {
         return;
     }
     const r = parseInt(parsedUrl.query['row']);
@@ -327,66 +362,34 @@ const handleMarkRequest = (parsedUrl) => {
 }
 
 const handleClearRequest = (parsedUrl) => {
-    if (!alive) {
+    if (state != 'alive') {
         return;
     }
     const r = parseInt(parsedUrl.query['row']);
     const c = parseInt(parsedUrl.query['column']);
     const tile = board[r][c];
-    if (!tile.revealed && !tile.mark) {
+    if (tile.mark || tile.flag) {
         clearTile(tile);
     }
 }
 
 const handleSseRequest = (parsedUrl, clientResponse) => {
     notifyClient(makeNewEvent(width, height, mines), clientResponse);
-    notifyClient(makeAliveEvent(alive), clientResponse);
+    notifyClient(makeStateEvent(state), clientResponse);
     notifyClient(makeFlagCountEvent(flags), clientResponse);
 
     sendAllTiles(clientResponse);
 }
 
 const sendAllTiles = (client=null) => {
-    console.log('sending tiles');
-    console.log(height, width);
     for (let r = 0; r < height; r++) {
         for (let c = 0; c < width; c++) {
             const tile = board[r][c];
-            if (alive) {
-                if (tile.revealed) {
-                    notifyClient(makeRevealEvent(r, c, getValue(tile)), client);
-                }
-                else if (tile.flag) {
-                    notifyClient(makeFlagEvent(r, c, tile.flag), client);
-                }
-                else if (tile.mark) {
-                    notifyClient(makeFlagEvent(r, c, tile.flag), client);
-                }
-            }
-            else {
-                if (tile.bomb) {
-                    if (revealed) {
-                        notifyClient(makeExplodeEvent(r, c), client);
-                    }
-                    else {
-                        notifyClient(makeRevealEvent(r, c, 'b'));
-                    }
-                }
-                else {
-                    if (tile.flag) {
-                        notifyClient(makeIncorrectEvent(r, c, client));
-                    }
-                    else {
-                        notifyClient(makeRevealEvent(r,
-                                c,
-                                getValue(tile)),
-                                client);
-                    }
-                }
+            if (tile.revealed || tile.bomb || tile.flag || tile.mark) {
+                notifyClient(makeTileEvent(tile), client);
             }
         }
     }
-    console.log('tiles sent');
 }
 
 // player actions, after validation
@@ -394,22 +397,34 @@ const revealTile = (tile) => {
     if (tile.revealed) {
         return;
     }
+    tile.revealed = true;
+    tile.flag = null;
+    tile.mark = null;
+    if (firstReveal && tile.bomb) {
+        for (let r = 0; r < height && tile.bomb; r++) {
+            for (let c = 0; c < width && tile.bomb; c++) {
+                const t = board[r][c];
+                if (t != tile && !t.bomb) {
+                    tile.bomb = false;
+                    t.bomb = true;
+                }
+            }
+        }
+    }
+    firstReveal = false;
     if (tile.bomb) {
-        alive = false;
-        notifyClient(makeAliveEvent(alive));
+        state = 'dead';
+        notifyClient(makeStateEvent(state));
         sendAllTiles();
     }
     else {
         if (tile.flag) { tile.flag = null;
             flags--;
-            notifyClient(makeFlagsEvent(flags));
+            notifyClient(makeFlagCountEvent(flags));
         }
         if (tile.mark) {
             tile.mark = null;
         }
-        tile.revealed = true;
-        const r = tile.row;
-        const c = tile.column;
         const v = getValue(tile);
         if (v == 0) {
             let neighbors = getNeighbors(tile);
@@ -417,35 +432,38 @@ const revealTile = (tile) => {
                 revealTile(n);
             });
         }
-        notifyClient(makeRevealEvent(r, c, v));
+        notifyClient(makeTileEvent(tile));
     }
 }
 
 const flagTile = (tile, color) => {
     if (!tile.flag) {
         flags++;
+    notifyClient(makeFlagCountEvent(flags));
     }
     tile.flag = color;
     tile.mark = null;
-    notifyClient(makeFlagsEvent(flags));
+    notifyClient(makeTileEvent(tile));
 }
 
 const markTile = (tile, color) => {
     if (tile.flag) {
         flags--;
+    notifyClient(makeFlagCountEvent(flags));
     }
     tile.flag = null;
     tile.mark = color;
-    notifyClient(makeFlagsEvent(flags));
+    notifyClient(makeTileEvent(tile));
 }
 
 const clearTile = (tile, color) => {
     if (tile.flag) {
         flags--;
+    notifyClient(makeFlagCountEvent(flags));
     }
     tile.flag = null;
     tile.mark = color;
-    notifyClient(makeClearEvent(flags));
+    notifyClient(makeTileEvent(tile));
 }
 
 newGame(width, height, mines);

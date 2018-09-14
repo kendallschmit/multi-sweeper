@@ -1,26 +1,30 @@
 // color stuff
-var color = 'f03030';
+const colorR = document.getElementById('color-r');
+const colorG = document.getElementById('color-g');
+const colorB = document.getElementById('color-b');
+const colorText = document.getElementById('color-text');
 
-const getParameterByName = (name, url) => {
-    if (!url) url = window.location.href;
-    name = name.replace(/[\[\]]/g, '\\$&');
-    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
-}
+var color = '#c03030';
 
-const r = parseInt(getParameterByName('r'));
-const g = parseInt(getParameterByName('g'));
-const b = parseInt(getParameterByName('b'));
-if (r && g && b) {
+const updateColor = () => {
+    r = parseInt(colorR.value);
+    g = parseInt(colorG.value);
+    b = parseInt(colorB.value);
+
     const toHex = (n) => {
         let h = n.toString(16);
-        return (h.length < 2 ? '0' : '') + h;
+        return (h.length < 2 ? '0' : '') + h
     }
-    color = toHex(r) + toHex(g) + toHex(b);
+    color = (toHex(r) + toHex(g) + toHex(b));
+    colorText.innerHTML = color;
+    colorText.style.color = '#' + color;
 }
+
+updateColor();
+
+colorR.oninput = updateColor;
+colorG.oninput = updateColor;
+colorB.oninput = updateColor;
 
 // ui stuff
 const statusText = document.getElementById('status');
@@ -50,7 +54,6 @@ source.addEventListener('new', (e) => {
     }
     // set up new tiles elements
     tileElements = [];
-    tileValues = [];
     for (let r = 0; r < height; r++) {
         const row = [];
         const valueRow = [];
