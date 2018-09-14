@@ -22,7 +22,6 @@ a:active {
 
 #board-grid {
     display: grid;
-    grid-template: repeat(16, 1.3em) / repeat(30, 1.3em);
     font-size: 110%;
 }
 

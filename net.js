@@ -26,7 +26,7 @@ const getText = (address, success, failure=handleRequestFailure) => {
     req.send();
 };
 
-const sendReveal = (row, column) => {
+const requestReveal = (row, column) => {
     getText(`reveal?row=${row}&column=${column}`, (response) => {
         //console.log('reveal:', row, column, response);
     });

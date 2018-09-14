@@ -30,60 +30,70 @@ colorR.oninput = updateColor;
 colorG.oninput = updateColor;
 colorB.oninput = updateColor;
 
-const tileElements = [];
-
-notify('generating board')
+// board globals
 const boardGrid = document.getElementById('board-grid');
-for (let r = 0; r < 16; r++) {
-    const row = [];
-    for (let c = 0; c < 30; c++) {
-        const tile = makeElementIn('div', ['tile'], boardGrid);
-        const cr = r;
-        const cc = c;
-        tile.addEventListener('click', (e) => {
-            sendReveal(cr, cc);
-        });
-        tile.addEventListener('contextmenu', (e) => {
-            sendFlag(cr, cc, color);
-            e.preventDefault();
-        });
-        updateTile(tile, r, c, ' ');
-        row.push(tile);
-    }
-    tileElements.push(row);
-}
-notify('board generated')
+let tileElements = [];
 
-notify('connecting');
-getJson('init', (response) => {
-    notify('connected');
-},
-(error) => {
-    notify(response);
-});
+var width = 0;
+var height = 0;
+var mines = 0;
 
 // set up server side events
 const source = new EventSource('/sse');
+source.addEventListener('new', (e) => {
+    const sp = e.data.split(',');
+    width = parseInt(sp[0]);
+    height = parseInt(sp[1]);
+    mines = parseInt(sp[2]);
+    boardGrid.style.gridTemplate =
+            `repeat(${height}, 1.3em) / repeat(${width}, 1.3em)`;
+    // remove old tile elements
+    while (boardGrid.hasChildNodes()) {
+        boardGrid.removeChild(boardGrid.lastChild);
+    }
+    // set up new tiles elements
+    tileElements = [];
+    for (let r = 0; r < width; r++) {
+        const row = [];
+        for (let c = 0; c < height; c++) {
+            const tileElement = makeElementIn('div', ['tile'], boardGrid);
+            const cr = r;
+            const cc = c;
+            tileElement.addEventListener('click', (e) => {
+                requestReveal(cr, cc);
+            });
+            tileElement.addEventListener('contextmenu', (e) => {
+                requestFlag(cr, cc, color);
+                e.preventDefault();
+            });
+            updateTile(tileElement, r, c, ' ');
+            row.push(tileElement);
+        }
+        tileElements.push(row);
+    }
+}, false);
+source.addEventListener('reveal', (e) => {
+    const sp = e.data.split(',');
+    const r = parseInt(sp[0]);
+    const c = parseInt(sp[1]);
+    const v = sp[2] == 'b' ? 'b' : parseInt(sp[2]);
+    updateTile(tileElements[r][c], r, c, v, null);
+}, false);
+source.addEventListener('explode', (e) => {
+    console.log(e.data);
+}, false);
+source.addEventListener('flag', (e) => {
+    console.log(e.data);
+}, false);
+source.addEventListener('mark', (e) => {
+    console.log(e.data);
+}, false);
+source.addEventListener('clear', (e) => {
+    console.log(e.data);
+}, false);
+source.addEventListener('incorrect', (e) => {
+    console.log(e.data);
+}, false);
 source.addEventListener('message', (e) => {
-    if (e.data == 'win') {
-        statusText.innerHTML = 'Win!';
-    }
-    else if (e.data == 'lose') {
-        statusText.innerHTML = 'Lose :(';
-    }
-    else if (e.data == 'new') {
-        statusText.innerHTML = 'New game';
-    }
-    else if (e.data.startsWith('flags')) {
-        const flagCount = parseInt(e.data.split(' ')[1]);
-        statusText.innerHTML = 'Flags: ' + flagCount;
-    }
-    else {
-        const sp = e.data.split(',');
-        const row = parseInt(sp[0]);
-        const column = parseInt(sp[1]);
-        const value = sp[2];
-        const color = value == 'f' || value == '?' ? sp[3] : null;
-        updateTile(tileElements[row][column], row, column, value, color);
-    }
+    console.log(e.data);
 }, false);
