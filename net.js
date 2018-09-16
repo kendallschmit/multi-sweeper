@@ -21,6 +21,12 @@ const requestReveal = (row, column) => {
     });
 };
 
+const requestAuto = (row, column) => {
+    getText(`auto?row=${row}&column=${column}`, (response) => {
+        console.log('auto:', row, column, response);
+    });
+};
+
 const requestFlag = (row, column, color) => {
     getText(`flag?row=${row}&column=${column}&color=${color}`, (response) => {
         console.log('flag:', row, column, response);

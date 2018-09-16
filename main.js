@@ -78,7 +78,13 @@ http.createServer((req, res) => {
     else if (p.pathname == '/reveal') {
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
-        handleRevealRequest(p); }
+        handleRevealRequest(p);
+    }
+    else if (p.pathname == '/auto') {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end();
+        handleAutoRequest(p);
+    }
     else if (p.pathname == '/flag') {
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end();
@@ -332,6 +338,33 @@ const handleRevealRequest = (parsedUrl) => {
         revealTile(tile);
     }
     checkVictoryState();
+}
+
+const handleAutoRequest = (parsedUrl) => {
+    console.log('auto');
+    if (state != 'alive') {
+        return;
+    }
+    const r = parseInt(parsedUrl.query['row']);
+    const c = parseInt(parsedUrl.query['column']);
+    const tile = board[r][c];
+    if (tile.revealed) {
+        let fcount = 0;
+        let neighbors = getNeighbors(tile);
+        neighbors.forEach((n) => {
+            if (n.flag) {
+                fcount++;
+            }
+        });
+        console.log(fcount);
+        if (fcount == getValue(tile)) {
+            neighbors.forEach((n) => {
+                if (!n.flag) {
+                    revealTile(n);
+                }
+            });
+        }
+    }
 }
 
 const handleFlagRequest = (parsedUrl) => {

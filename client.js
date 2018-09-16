@@ -61,6 +61,9 @@ source.addEventListener('new', (e) => {
             tileElement.addEventListener('click', (e) => {
                 requestReveal(cr, cc);
             });
+            tileElement.addEventListener('dblclick', (e) => {
+                requestAuto(cr, cc);
+            });
             tileElement.addEventListener('contextmenu', (e) => {
                 const v = tileValues[cr][cc];
                 if (v == 'f') {
