@@ -341,7 +341,6 @@ const handleRevealRequest = (parsedUrl) => {
 }
 
 const handleAutoRequest = (parsedUrl) => {
-    console.log('auto');
     if (state != 'alive') {
         return;
     }
@@ -356,7 +355,6 @@ const handleAutoRequest = (parsedUrl) => {
                 fcount++;
             }
         });
-        console.log(fcount);
         if (fcount == getValue(tile)) {
             neighbors.forEach((n) => {
                 if (!n.flag) {
